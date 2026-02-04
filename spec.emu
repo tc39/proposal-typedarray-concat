@@ -4,36 +4,49 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.4/styles/github.min.css">
 <script src="./spec.js"></script>
 <pre class="metadata">
-title: Proposal Title Goes Here
-stage: -1
-contributors: Your Name(s) Here
+title: TypedArray.concat
+stage: 1
+contributors: James M Snell
 </pre>
 
-<emu-clause id="sec-demo-clause">
-  <h1>This is an emu-clause</h1>
-  <p>This is an algorithm:</p>
-  <emu-alg>
-    1. Let _proposal_ be *undefined*.
-    1. If IsAccepted(_proposal_) is *true*, then
-      1. Let _stage_ be *0*<sub>ℤ</sub>.
-    1. Else,
-      1. Let _stage_ be *-1*<sub>ℤ</sub>.
-    1. Return ? ToString(_stage_).
-  </emu-alg>
-</emu-clause>
+<emu-clause id="sec-typedarray-objects">
+  <h1>TypedArray Objects</h1>
 
-<emu-clause id="sec-is-accepted" type="abstract operation">
-  <h1>
-      IsAccepted (
-        _proposal_: an ECMAScript language value
-      ): a Boolean
-  </h1>
-  <dl class="header">
-    <dt>description</dt>
-    <dd>Tells you if the proposal was accepted</dd>
-  </dl>
-  <emu-alg>
-    1. If _proposal_ is not a String, or is not accepted, return *false*.
-    1. Return *true*.
-  </emu-alg>
+  <emu-clause id="sec-%typedarray%-intrinsic-object">
+    <h1>The %TypedArray% Intrinsic Object</h1>
+
+    <emu-clause id="sec-properties-of-the-%typedarray%-intrinsic-object">
+      <h1>Properties of the %TypedArray% Intrinsic Object</h1>
+
+      <emu-clause id="sec-%typedarray%.concat">
+        <h1>%TypedArray%.concat ( _items_ [ , _length_ ] )</h1>
+        <p>This method concatenates the elements of multiple TypedArrays of the same type into a new TypedArray. It performs the following steps when called:</p>
+        <emu-alg>
+          1. Let _C_ be the *this* value.
+          1. If IsConstructor(_C_) is *false*, throw a *TypeError* exception.
+          1. If _C_ does not have a [[TypedArrayName]] internal slot, throw a *TypeError* exception.
+          1. Let _arrayList_ be ? IteratorToList(? GetIteratorFromMethod(_items_, ? GetMethod(_items_, %Symbol.iterator%))).
+          1. Let _totalLength_ be 0.
+          1. Let _elementType_ be TypedArrayElementType(_C_).
+          1. For each element _item_ of _arrayList_, do
+            1. Let _taRecord_ be ? ValidateTypedArray(_item_, ~seq-cst~).
+            1. If TypedArrayElementType(_item_) is not _elementType_, throw a *TypeError* exception.
+            1. Let _itemLength_ be TypedArrayLength(_taRecord_).
+            1. Set _totalLength_ to _totalLength_ + _itemLength_.
+          1. If _length_ is present and _length_ is not *undefined*, then
+            1. Let _newLength_ be ? ToIndex(_length_).
+            1. If _newLength_ &gt; _totalLength_, throw a *RangeError* exception.
+          1. Else,
+            1. Let _newLength_ be _totalLength_.
+          1. Let _A_ be a TypedArray that is an instance of _C_ with a length of _newLength_, containing the concatenated elements from _arrayList_ in order, truncated to _newLength_ elements.
+          1. Return _A_.
+        </emu-alg>
+        <emu-note>
+          <p>This method requires that the *this* value be a TypedArray constructor and that all elements of _items_ be TypedArrays of the same type. For example, `Uint8Array.concat([a, b])` requires that both _a_ and _b_ are `Uint8Array` instances.</p>
+          <p>If the optional _length_ parameter is provided and is less than the sum of the lengths of all input TypedArrays, the result is truncated to the specified length. If _length_ is greater than the total length of input arrays, a *RangeError* is thrown.</p>
+          <p>Implementations may use any technique to allocate and populate the result TypedArray, such as direct memory copy, deferred concatenation, or element-by-element copying, provided the observable result is a TypedArray containing the concatenated elements in order.</p>
+        </emu-note>
+      </emu-clause>
+    </emu-clause>
+  </emu-clause>
 </emu-clause>
