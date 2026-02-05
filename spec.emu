@@ -42,9 +42,12 @@ contributors: James M Snell
             1. Set _totalLength_ to _totalLength_ + _itemLength_.
           1. If _newLength_ is ~empty~, then
             1. Set _newLength_ to _totalLength_.
-          1. Let _A_ be a TypedArray that is an instance of _C_ with a length of _newLength_, containing the concatenated elements from _arrayList_ in order, truncated to _newLength_ elements.
+          1. [id="step-construct-result"] Let _A_ be a TypedArray that is an instance of _C_ with a length of _newLength_, containing the concatenated elements from _arrayList_ in order, truncated to _newLength_ elements.
           1. Return _A_.
         </emu-alg>
+        <emu-note type="editor">
+          <p>The description of the construction of _A_ in <emu-xref href="#step-construct-result"></emu-xref> is intentionally high-level, allowing implementations freedom in how the result TypedArray is allocated and populated. A question for committee is whether this step needs to be specified more precisely with explicit algorithmic substeps (e.g., allocating the underlying ArrayBuffer, iterating and copying element-by-element), even if implementations are expected to use optimized approaches such as direct memory copy.</p>
+        </emu-note>
         <emu-note>
           <p>This method requires that the *this* value be a TypedArray constructor and that all elements of _items_ be TypedArrays of the same type. For example, `Uint8Array.concat([a, b])` requires that both _a_ and _b_ are `Uint8Array` instances.</p>
           <p>If the optional _length_ parameter is provided and is less than the sum of the lengths of all input TypedArrays, the result is truncated to the specified length. If _length_ is greater than the total length of input arrays, the result is zero-filled to the specified length.</p>
