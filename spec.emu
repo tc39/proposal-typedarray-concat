@@ -15,6 +15,30 @@ contributors: James M Snell
   <emu-clause id="sec-%typedarray%-intrinsic-object">
     <h1>The %TypedArray% Intrinsic Object</h1>
 
+    <emu-clause id="sec-abstract-operations-for-typedarray-objects">
+      <h1>Abstract Operations for TypedArray Objects</h1>
+
+      <emu-clause id="sec-validateintegralnumber" type="abstract operation">
+        <h1>
+          ValidateIntegralNumber (
+            _value_: an ECMAScript language value,
+            _default_: an integer,
+          ): either a normal completion containing an integer or a throw completion
+        </h1>
+        <dl class="header">
+          <dt>description</dt>
+          <dd>It validates that _value_ is either *undefined* or an integral Number, returning the corresponding mathematical integer. If _value_ is *undefined*, the _default_ is returned.</dd>
+        </dl>
+        <emu-alg>
+          1. If _value_ is *undefined*, return _default_.
+          1. If _value_ is not a Number, throw a *TypeError* exception.
+          1. If _value_ is *NaN*, throw a *RangeError* exception.
+          1. If truncate(ℝ(_value_)) is not ℝ(_value_), throw a *RangeError* exception.
+          1. Return ℝ(_value_).
+        </emu-alg>
+      </emu-clause>
+    </emu-clause>
+
     <emu-clause id="sec-properties-of-the-%typedarray%-intrinsic-object">
       <h1>Properties of the %TypedArray% Intrinsic Object</h1>
 
@@ -28,30 +52,40 @@ contributors: James M Snell
           1. Let _arrayList_ be ? IteratorToList(? GetIteratorFromMethod(_items_, ? GetMethod(_items_, %Symbol.iterator%))).
           1. Let _newLength_ be ~empty~.
           1. If _length_ is present and _length_ is not *undefined*, then
-            1. If _length_ is not a Number, throw a *TypeError* exception.
-            1. If _length_ is *NaN*, *+&infin;*<sub>𝔽</sub>, or *-&infin;*<sub>𝔽</sub>, throw a *RangeError* exception.
-            1. If truncate(ℝ(_length_)) is not ℝ(_length_), throw a *RangeError* exception.
-            1. If ℝ(_length_) &lt; 0, throw a *RangeError* exception.
-            1. Set _newLength_ to ℝ(_length_).
+            1. Set _newLength_ to ? ValidateIntegralNumber(_length_, 0).
+            1. If _newLength_ &lt; 0, throw a *RangeError* exception.
+            1. If _newLength_ &gt; 2<sup>53</sup> - 1, throw a *RangeError* exception.
           1. Let _totalLength_ be 0.
-          1. Let _elementType_ be TypedArrayElementType(_C_).
+          1. Let _constructorName_ be _C_.[[TypedArrayName]].
           1. For each element _item_ of _arrayList_, do
             1. Let _taRecord_ be ? ValidateTypedArray(_item_, ~seq-cst~).
-            1. If TypedArrayElementType(_item_) is not _elementType_, throw a *TypeError* exception.
+            1. If _item_.[[TypedArrayName]] is not _constructorName_, throw a *TypeError* exception.
             1. Let _itemLength_ be TypedArrayLength(_taRecord_).
             1. Set _totalLength_ to _totalLength_ + _itemLength_.
+            1. If _totalLength_ &gt; 2<sup>53</sup> - 1, throw a *RangeError* exception.
           1. If _newLength_ is ~empty~, then
             1. Set _newLength_ to _totalLength_.
-          1. [id="step-construct-result"] Let _A_ be a TypedArray that is an instance of _C_ with a length of _newLength_, containing the concatenated elements from _arrayList_ in order, truncated to _newLength_ elements.
+          1. Let _defaultProto_ be the String value of the Prototype column of the row in <emu-xref href="#table-the-typedarray-constructors"></emu-xref> for _constructorName_.
+          1. Let _A_ be ? AllocateTypedArray(_constructorName_, _C_, _defaultProto_).
+          1. Perform ? AllocateTypedArrayBuffer(_A_, _newLength_).
+          1. Let _elementSize_ be TypedArrayElementSize(_A_).
+          1. [id="step-ta-copy-start"] Let _writeOffset_ be 0.
+          1. For each element _item_ of _arrayList_, do
+            1. Let _remaining_ be _newLength_ - _writeOffset_.
+            1. If _remaining_ &le; 0, then
+              1. [id="step-ta-copy-done"] NOTE: The result TypedArray is full; no more elements need to be copied.
+            1. Else,
+              1. Let _taRecord_ be MakeTypedArrayWithBufferWitnessRecord(_item_, ~seq-cst~).
+              1. Let _itemLength_ be TypedArrayLength(_taRecord_).
+              1. Let _count_ be the result of clamping _itemLength_ between 0 and _remaining_.
+              1. Let _srcByteOffset_ be _item_.[[ByteOffset]].
+              1. Let _srcByteLength_ be _count_ &times; _elementSize_.
+              1. Perform CopyDataBlockBytes(_A_.[[ViewedArrayBuffer]].[[ArrayBufferData]], _writeOffset_ &times; _elementSize_, _item_.[[ViewedArrayBuffer]].[[ArrayBufferData]], _srcByteOffset_, _srcByteLength_).
+              1. Set _writeOffset_ to _writeOffset_ + _count_.
           1. Return _A_.
         </emu-alg>
         <emu-note type="editor">
-          <p>The description of the construction of _A_ in <emu-xref href="#step-construct-result"></emu-xref> is intentionally high-level, allowing implementations freedom in how the result TypedArray is allocated and populated. A question for committee is whether this step needs to be specified more precisely with explicit algorithmic substeps (e.g., allocating the underlying ArrayBuffer, iterating and copying element-by-element), even if implementations are expected to use optimized approaches such as direct memory copy.</p>
-        </emu-note>
-        <emu-note>
-          <p>This method requires that the *this* value be a TypedArray constructor and that all elements of _items_ be TypedArrays of the same type. For example, `Uint8Array.concat([a, b])` requires that both _a_ and _b_ are `Uint8Array` instances.</p>
-          <p>If the optional _length_ parameter is provided and is less than the sum of the lengths of all input TypedArrays, the result is truncated to the specified length. If _length_ is greater than the total length of input arrays, the result is zero-filled to the specified length.</p>
-          <p>Implementations may use any technique to allocate and populate the result TypedArray, such as direct memory copy, deferred concatenation, or element-by-element copying, provided the observable result is a TypedArray containing the concatenated elements in order.</p>
+          <p>The algorithm from <emu-xref href="#step-ta-copy-start"></emu-xref> through <emu-xref href="#step-ta-copy-done"></emu-xref> is specified with explicit allocation and byte-copying steps for clarity. Because all items share the same element type and the copy operates on the underlying data blocks, the result of the concatenation is not observable to user code during construction. Implementations may therefore use any technique — such as bulk memory copy, deferred allocation, or platform-specific optimizations — provided the observable result is equivalent.</p>
         </emu-note>
       </emu-clause>
     </emu-clause>
@@ -73,11 +107,9 @@ contributors: James M Snell
         1. Let _lengthOption_ be ? Get(_opts_, *"length"*).
         1. Let _newByteLength_ be ~empty~.
         1. If _lengthOption_ is not *undefined*, then
-          1. If _lengthOption_ is not a Number, throw a *TypeError* exception.
-          1. If _lengthOption_ is *NaN*, *+&infin;*<sub>𝔽</sub>, or *-&infin;*<sub>𝔽</sub>, throw a *RangeError* exception.
-          1. If truncate(ℝ(_lengthOption_)) is not ℝ(_lengthOption_), throw a *RangeError* exception.
-          1. If ℝ(_lengthOption_) &lt; 0, throw a *RangeError* exception.
-          1. Set _newByteLength_ to ℝ(_lengthOption_).
+          1. Set _newByteLength_ to ? ValidateIntegralNumber(_lengthOption_, 0).
+          1. If _newByteLength_ &lt; 0, throw a *RangeError* exception.
+          1. If _newByteLength_ &gt; 2<sup>53</sup> - 1, throw a *RangeError* exception.
         1. Let _resizable_ be ToBoolean(? Get(_opts_, *"resizable"*)).
         1. Let _immutable_ be ToBoolean(? Get(_opts_, *"immutable"*)).
         1. If _resizable_ is *true* and _immutable_ is *true*, throw a *TypeError* exception.
@@ -89,44 +121,50 @@ contributors: James M Snell
             1. Let _byteLen_ be TypedArrayByteLength(_taRecord_).
             1. Append the Record { [[Buffer]]: _item_.[[ViewedArrayBuffer]], [[ByteOffset]]: _item_.[[ByteOffset]], [[ByteLength]]: _byteLen_ } to _sources_.
             1. Set _totalByteLength_ to _totalByteLength_ + _byteLen_.
+            1. If _totalByteLength_ &gt; 2<sup>53</sup> - 1, throw a *RangeError* exception.
           1. Else if _item_ has a [[DataView]] internal slot, then
             1. Let _dvRecord_ be MakeDataViewWithBufferWitnessRecord(_item_, ~seq-cst~).
             1. If IsViewOutOfBounds(_dvRecord_) is *true*, throw a *TypeError* exception.
             1. Let _byteLen_ be GetViewByteLength(_dvRecord_).
             1. Append the Record { [[Buffer]]: _item_.[[ViewedArrayBuffer]], [[ByteOffset]]: _item_.[[ByteOffset]], [[ByteLength]]: _byteLen_ } to _sources_.
             1. Set _totalByteLength_ to _totalByteLength_ + _byteLen_.
+            1. If _totalByteLength_ &gt; 2<sup>53</sup> - 1, throw a *RangeError* exception.
           1. Else if _item_ has an [[ArrayBufferData]] internal slot, then
             1. If IsDetachedBuffer(_item_) is *true*, throw a *TypeError* exception.
             1. If IsSharedArrayBuffer(_item_) is *true*, throw a *TypeError* exception.
             1. Let _byteLen_ be ArrayBufferByteLength(_item_, ~seq-cst~).
             1. Append the Record { [[Buffer]]: _item_, [[ByteOffset]]: 0, [[ByteLength]]: _byteLen_ } to _sources_.
             1. Set _totalByteLength_ to _totalByteLength_ + _byteLen_.
+            1. If _totalByteLength_ &gt; 2<sup>53</sup> - 1, throw a *RangeError* exception.
           1. Else,
             1. Throw a *TypeError* exception.
         1. If _newByteLength_ is ~empty~, then
           1. Set _newByteLength_ to _totalByteLength_.
         1. If _resizable_ is *true*, then
           1. Let _maxByteLength_ be _newByteLength_.
-          1. Let _byteLength_ be min(_totalByteLength_, _maxByteLength_).
+          1. Let _byteLength_ be the result of clamping _totalByteLength_ between 0 and _maxByteLength_.
           1. Let _A_ be ? AllocateArrayBuffer(%ArrayBuffer%, _byteLength_, _maxByteLength_).
         1. Else,
           1. Let _A_ be ? AllocateArrayBuffer(%ArrayBuffer%, _newByteLength_).
         1. [id="step-ab-construct-result"] Let _writeOffset_ be 0.
         1. For each element _source_ of _sources_, do
-          1. Let _sourceBuffer_ be _source_.[[Buffer]].
-          1. Let _sourceByteOffset_ be _source_.[[ByteOffset]].
-          1. Let _sourceByteLength_ be _source_.[[ByteLength]].
           1. Let _remaining_ be _A_.[[ArrayBufferByteLength]] - _writeOffset_.
           1. If _remaining_ &le; 0, then
             1. [id="step-ab-copy-done"] NOTE: The result buffer is full; no more bytes need to be copied.
           1. Else,
-            1. Let _count_ be min(_sourceByteLength_, _remaining_).
+            1. Let _sourceBuffer_ be _source_.[[Buffer]].
+            1. Let _sourceByteOffset_ be _source_.[[ByteOffset]].
+            1. Let _sourceByteLength_ be _source_.[[ByteLength]].
+            1. Let _count_ be the result of clamping _sourceByteLength_ between 0 and _remaining_.
             1. Perform CopyDataBlockBytes(_A_.[[ArrayBufferData]], _writeOffset_, _sourceBuffer_.[[ArrayBufferData]], _sourceByteOffset_, _count_).
             1. Set _writeOffset_ to _writeOffset_ + _count_.
         1. If _immutable_ is *true*, then
           1. Transition _A_ to an immutable ArrayBuffer whose contents cannot be changed, resized, or detached.
         1. Return _A_.
       </emu-alg>
+      <emu-note type="editor">
+        <p>The algorithm from <emu-xref href="#step-ab-construct-result"></emu-xref> through <emu-xref href="#step-ab-copy-done"></emu-xref> is specified with explicit allocation and byte-copying steps for clarity. Because the copy operates on the underlying data blocks, the result of the concatenation is not observable to user code during construction. Implementations may therefore use any technique — such as bulk memory copy, deferred allocation, or platform-specific optimizations — provided the observable result is equivalent.</p>
+      </emu-note>
       <emu-note type="editor">
         <p>The _immutable_ option depends on the <a href="https://github.com/tc39/proposal-immutable-arraybuffer">Immutable ArrayBuffer proposal</a> (currently at stage 2.7). The exact mechanism for transitioning an ArrayBuffer to an immutable state will be defined by that proposal.</p>
       </emu-note>
