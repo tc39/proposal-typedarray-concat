@@ -46,9 +46,9 @@ contributors: James M Snell
         <h1>%TypedArray%.concat ( _items_ [ , _length_ ] )</h1>
         <p>This method concatenates the elements of multiple TypedArrays of the same type into a new TypedArray. It performs the following steps when called:</p>
         <emu-alg>
-          1. Let _C_ be the *this* value.
-          1. If IsConstructor(_C_) is *false*, throw a *TypeError* exception.
-          1. If _C_ does not have a [[TypedArrayName]] internal slot, throw a *TypeError* exception.
+          1. Let _constructor_ be the *this* value.
+          1. If IsConstructor(_constructor_) is *false*, throw a *TypeError* exception.
+          1. If _constructor_ does not have a [[TypedArrayName]] internal slot, throw a *TypeError* exception.
           1. Let _arrayList_ be ? IteratorToList(? GetIteratorFromMethod(_items_, ? GetMethod(_items_, %Symbol.iterator%))).
           1. Let _newLength_ be ~empty~.
           1. If _length_ is present and _length_ is not *undefined*, then
@@ -56,7 +56,7 @@ contributors: James M Snell
             1. If _newLength_ &lt; 0, throw a *RangeError* exception.
             1. If _newLength_ &gt; 2<sup>53</sup> - 1, throw a *RangeError* exception.
           1. Let _totalLength_ be 0.
-          1. Let _constructorName_ be _C_.[[TypedArrayName]].
+          1. Let _constructorName_ be _constructor_.[[TypedArrayName]].
           1. For each element _item_ of _arrayList_, do
             1. Let _taRecord_ be ? ValidateTypedArray(_item_, ~seq-cst~).
             1. If _item_.[[TypedArrayName]] is not _constructorName_, throw a *TypeError* exception.
@@ -66,27 +66,26 @@ contributors: James M Snell
           1. If _newLength_ is ~empty~, then
             1. Set _newLength_ to _totalLength_.
           1. Let _defaultProto_ be the String value of the Prototype column of the row in <emu-xref href="#table-the-typedarray-constructors"></emu-xref> for _constructorName_.
-          1. Let _A_ be ? AllocateTypedArray(_constructorName_, _C_, _defaultProto_).
-          1. Perform ? AllocateTypedArrayBuffer(_A_, _newLength_).
-          1. Let _elementSize_ be TypedArrayElementSize(_A_).
+          1. Let _result_ be ? AllocateTypedArray(_constructorName_, _constructor_, _defaultProto_).
+          1. Perform ? AllocateTypedArrayBuffer(_result_, _newLength_).
+          1. Let _elementSize_ be TypedArrayElementSize(_result_).
           1. [id="step-ta-copy-start"] Let _writeOffset_ be 0.
           1. For each element _item_ of _arrayList_, do
             1. Let _remaining_ be _newLength_ - _writeOffset_.
-            1. If _remaining_ &le; 0, then
-              1. [id="step-ta-copy-done"] NOTE: The result TypedArray is full; no more elements need to be copied.
-            1. Else,
+            1. If _remaining_ &gt; 0, then
               1. Let _taRecord_ be MakeTypedArrayWithBufferWitnessRecord(_item_, ~seq-cst~).
               1. Let _itemLength_ be TypedArrayLength(_taRecord_).
               1. Let _count_ be the result of clamping _itemLength_ between 0 and _remaining_.
               1. Let _srcByteOffset_ be _item_.[[ByteOffset]].
               1. Let _srcByteLength_ be _count_ &times; _elementSize_.
-              1. Perform CopyDataBlockBytes(_A_.[[ViewedArrayBuffer]].[[ArrayBufferData]], _writeOffset_ &times; _elementSize_, _item_.[[ViewedArrayBuffer]].[[ArrayBufferData]], _srcByteOffset_, _srcByteLength_).
-              1. Set _writeOffset_ to _writeOffset_ + _count_.
-          1. Return _A_.
+              1. Perform CopyDataBlockBytes(_result_.[[ViewedArrayBuffer]].[[ArrayBufferData]], _writeOffset_ &times; _elementSize_, _item_.[[ViewedArrayBuffer]].[[ArrayBufferData]], _srcByteOffset_, _srcByteLength_).
+              1. [id="step-ta-copy-done"] Set _writeOffset_ to _writeOffset_ + _count_.
+          1. Return _result_.
         </emu-alg>
         <emu-note type="editor">
           <p>The algorithm from <emu-xref href="#step-ta-copy-start"></emu-xref> through <emu-xref href="#step-ta-copy-done"></emu-xref> is specified with explicit allocation and byte-copying steps for clarity. Because all items share the same element type and the copy operates on the underlying data blocks, the result of the concatenation is not observable to user code during construction. Implementations may therefore use any technique — such as bulk memory copy, deferred allocation, or platform-specific optimizations — provided the observable result is equivalent.</p>
         </emu-note>
+      </emu-clause>
     </emu-clause>
   </emu-clause>
 </emu-clause>
@@ -139,27 +138,25 @@ contributors: James M Snell
   <emu-clause id="sec-copysourcestobuffer" type="abstract operation">
     <h1>
       CopySourcesToBuffer (
-        _A_: an ArrayBuffer or SharedArrayBuffer,
+        _result_: an ArrayBuffer or SharedArrayBuffer,
         _sources_: a List of Records with fields [[Buffer]], [[ByteOffset]], and [[ByteLength]],
       ): ~unused~
     </h1>
     <dl class="header">
       <dt>description</dt>
-      <dd>It copies byte data from _sources_ into _A_ in order, stopping when _A_ is full.</dd>
+      <dd>It copies byte data from _sources_ into _result_ in order, stopping when _result_ is full.</dd>
     </dl>
     <emu-alg>
       1. [id="step-copy-start"] Let _writeOffset_ be 0.
       1. For each element _source_ of _sources_, do
-        1. Let _remaining_ be _A_.[[ArrayBufferByteLength]] - _writeOffset_.
-        1. If _remaining_ &le; 0, then
-          1. [id="step-copy-done"] NOTE: The result buffer is full; no more bytes need to be copied.
-        1. Else,
+        1. Let _remaining_ be _result_.[[ArrayBufferByteLength]] - _writeOffset_.
+        1. If _remaining_ &gt; 0, then
           1. Let _sourceBuffer_ be _source_.[[Buffer]].
           1. Let _sourceByteOffset_ be _source_.[[ByteOffset]].
           1. Let _sourceByteLength_ be _source_.[[ByteLength]].
           1. Let _count_ be the result of clamping _sourceByteLength_ between 0 and _remaining_.
-          1. Perform CopyDataBlockBytes(_A_.[[ArrayBufferData]], _writeOffset_, _sourceBuffer_.[[ArrayBufferData]], _sourceByteOffset_, _count_).
-          1. Set _writeOffset_ to _writeOffset_ + _count_.
+          1. Perform CopyDataBlockBytes(_result_.[[ArrayBufferData]], _writeOffset_, _sourceBuffer_.[[ArrayBufferData]], _sourceByteOffset_, _count_).
+          1. [id="step-copy-done"] Set _writeOffset_ to _writeOffset_ + _count_.
       1. Return ~unused~.
     </emu-alg>
     <emu-note type="editor">
@@ -171,6 +168,26 @@ contributors: James M Snell
 <emu-clause id="sec-arraybuffer-objects">
   <h1>ArrayBuffer Objects</h1>
 
+  <emu-clause id="sec-makearraybufferimmutable" type="abstract operation">
+    <h1>
+      MakeArrayBufferImmutable (
+        _arrayBuffer_: an ArrayBuffer,
+      ): ~unused~
+    </h1>
+    <dl class="header">
+      <dt>description</dt>
+      <dd>It transitions _arrayBuffer_ to an immutable state whose contents cannot be changed, resized, or detached.</dd>
+    </dl>
+    <emu-alg>
+      1. Assert: IsDetachedBuffer(_arrayBuffer_) is *false*.
+      1. NOTE: The concrete steps for this abstract operation will be provided by the Immutable ArrayBuffer proposal.
+      1. Return ~unused~.
+    </emu-alg>
+    <emu-note type="editor">
+      <p>This is a placeholder abstract operation. The actual mechanism for transitioning an ArrayBuffer to an immutable state will be defined by the <a href="https://github.com/tc39/proposal-immutable-arraybuffer">Immutable ArrayBuffer proposal</a> (currently at stage 2.7).</p>
+    </emu-note>
+  </emu-clause>
+
   <emu-clause id="sec-properties-of-the-arraybuffer-constructor">
     <h1>Properties of the ArrayBuffer Constructor</h1>
 
@@ -179,34 +196,39 @@ contributors: James M Snell
       <p>This method concatenates the byte contents of multiple ArrayBuffers, SharedArrayBuffers, TypedArrays, or DataViews into a new ArrayBuffer. It performs the following steps when called:</p>
       <emu-alg>
         1. Let _arrayList_ be ? IteratorToList(? GetIteratorFromMethod(_items_, ? GetMethod(_items_, %Symbol.iterator%))).
-        1. Let _opts_ be ? GetOptionsObject(_options_).
-        1. Let _lengthOption_ be ? Get(_opts_, *"length"*).
+        1. If _options_ is *undefined*, then
+          1. Let _optionsObj_ be OrdinaryObjectCreate(*null*).
+        1. Else if _options_ is an Object, then
+          1. Let _optionsObj_ be _options_.
+        1. Else,
+          1. Throw a *TypeError* exception.
+        1. Let _lengthOption_ be ? Get(_optionsObj_, *"length"*).
         1. Let _newByteLength_ be ~empty~.
         1. If _lengthOption_ is not *undefined*, then
           1. Set _newByteLength_ to ? ValidateIntegralNumber(_lengthOption_, 0).
           1. If _newByteLength_ &lt; 0, throw a *RangeError* exception.
           1. If _newByteLength_ &gt; 2<sup>53</sup> - 1, throw a *RangeError* exception.
-        1. Let _resizable_ be ToBoolean(? Get(_opts_, *"resizable"*)).
-        1. Let _immutable_ be ToBoolean(? Get(_opts_, *"immutable"*)).
+        1. Let _resizable_ be ToBoolean(? Get(_optionsObj_, *"resizable"*)).
+        1. Let _immutable_ be ToBoolean(? Get(_optionsObj_, *"immutable"*)).
         1. If _resizable_ is *true* and _immutable_ is *true*, throw a *TypeError* exception.
-        1. Let _result_ be ? GetConcatenationSources(_arrayList_).
-        1. Let _sources_ be _result_.[[Sources]].
-        1. Let _totalByteLength_ be _result_.[[TotalByteLength]].
+        1. Let _concatenation_ be ? GetConcatenationSources(_arrayList_).
+        1. Let _sources_ be _concatenation_.[[Sources]].
+        1. Let _totalByteLength_ be _concatenation_.[[TotalByteLength]].
         1. If _newByteLength_ is ~empty~, then
           1. Set _newByteLength_ to _totalByteLength_.
         1. If _resizable_ is *true*, then
           1. Let _maxByteLength_ be _newByteLength_.
           1. Let _byteLength_ be the result of clamping _totalByteLength_ between 0 and _maxByteLength_.
-          1. Let _A_ be ? AllocateArrayBuffer(%ArrayBuffer%, _byteLength_, _maxByteLength_).
+          1. Let _result_ be ? AllocateArrayBuffer(%ArrayBuffer%, _byteLength_, _maxByteLength_).
         1. Else,
-          1. Let _A_ be ? AllocateArrayBuffer(%ArrayBuffer%, _newByteLength_).
-        1. Perform CopySourcesToBuffer(_A_, _sources_).
+          1. Let _result_ be ? AllocateArrayBuffer(%ArrayBuffer%, _newByteLength_).
+        1. Perform CopySourcesToBuffer(_result_, _sources_).
         1. If _immutable_ is *true*, then
-          1. Transition _A_ to an immutable ArrayBuffer whose contents cannot be changed, resized, or detached.
-        1. Return _A_.
+          1. Perform MakeArrayBufferImmutable(_result_).
+        1. Return _result_.
       </emu-alg>
       <emu-note type="editor">
-        <p>The _immutable_ option depends on the <a href="https://github.com/tc39/proposal-immutable-arraybuffer">Immutable ArrayBuffer proposal</a> (currently at stage 2.7). The exact mechanism for transitioning an ArrayBuffer to an immutable state will be defined by that proposal.</p>
+        <p>The _immutable_ option depends on the <a href="https://github.com/tc39/proposal-immutable-arraybuffer">Immutable ArrayBuffer proposal</a> (currently at stage 2.7). MakeArrayBufferImmutable is a placeholder for the abstract operation that will be defined by that proposal.</p>
       </emu-note>
       <emu-note>
         <p>The result is always a (non-shared) ArrayBuffer regardless of the input types.</p>
@@ -229,27 +251,32 @@ contributors: James M Snell
       <p>This method concatenates the byte contents of multiple ArrayBuffers, SharedArrayBuffers, TypedArrays, or DataViews into a new SharedArrayBuffer. It performs the following steps when called:</p>
       <emu-alg>
         1. Let _arrayList_ be ? IteratorToList(? GetIteratorFromMethod(_items_, ? GetMethod(_items_, %Symbol.iterator%))).
-        1. Let _opts_ be ? GetOptionsObject(_options_).
-        1. Let _lengthOption_ be ? Get(_opts_, *"length"*).
+        1. If _options_ is *undefined*, then
+          1. Let _optionsObj_ be OrdinaryObjectCreate(*null*).
+        1. Else if _options_ is an Object, then
+          1. Let _optionsObj_ be _options_.
+        1. Else,
+          1. Throw a *TypeError* exception.
+        1. Let _lengthOption_ be ? Get(_optionsObj_, *"length"*).
         1. Let _newByteLength_ be ~empty~.
         1. If _lengthOption_ is not *undefined*, then
           1. Set _newByteLength_ to ? ValidateIntegralNumber(_lengthOption_, 0).
           1. If _newByteLength_ &lt; 0, throw a *RangeError* exception.
           1. If _newByteLength_ &gt; 2<sup>53</sup> - 1, throw a *RangeError* exception.
-        1. Let _growable_ be ToBoolean(? Get(_opts_, *"growable"*)).
-        1. Let _result_ be ? GetConcatenationSources(_arrayList_).
-        1. Let _sources_ be _result_.[[Sources]].
-        1. Let _totalByteLength_ be _result_.[[TotalByteLength]].
+        1. Let _growable_ be ToBoolean(? Get(_optionsObj_, *"growable"*)).
+        1. Let _concatenation_ be ? GetConcatenationSources(_arrayList_).
+        1. Let _sources_ be _concatenation_.[[Sources]].
+        1. Let _totalByteLength_ be _concatenation_.[[TotalByteLength]].
         1. If _newByteLength_ is ~empty~, then
           1. Set _newByteLength_ to _totalByteLength_.
         1. If _growable_ is *true*, then
           1. Let _maxByteLength_ be _newByteLength_.
           1. Let _byteLength_ be the result of clamping _totalByteLength_ between 0 and _maxByteLength_.
-          1. Let _A_ be ? AllocateSharedArrayBuffer(%SharedArrayBuffer%, _byteLength_, _maxByteLength_).
+          1. Let _result_ be ? AllocateSharedArrayBuffer(%SharedArrayBuffer%, _byteLength_, _maxByteLength_).
         1. Else,
-          1. Let _A_ be ? AllocateSharedArrayBuffer(%SharedArrayBuffer%, _newByteLength_).
-        1. Perform CopySourcesToBuffer(_A_, _sources_).
-        1. Return _A_.
+          1. Let _result_ be ? AllocateSharedArrayBuffer(%SharedArrayBuffer%, _newByteLength_).
+        1. Perform CopySourcesToBuffer(_result_, _sources_).
+        1. Return _result_.
       </emu-alg>
       <emu-note>
         <p>The result is always a SharedArrayBuffer regardless of the input types.</p>
