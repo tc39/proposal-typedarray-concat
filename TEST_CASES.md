@@ -1,5 +1,9 @@
 # Comprehensive Test Cases
 
+**Spec version**: `060d39f`
+**Generated**: 2026-03-07
+**Total assertions**: ~350
+
 Test cases for `%TypedArray%.concat`, `ArrayBuffer.concat`, and `SharedArrayBuffer.concat`.
 
 ### Identifier Convention
@@ -23,11 +27,11 @@ Where a test case is preceded by a "For each ..." qualifier (e.g. "For each Type
 - [ ] [1.1.7] `%TypedArray%.concat.call(Symbol(), [])` → TypeError
 - [ ] [1.1.8] `%TypedArray%.concat.call(() => {}, [])` → TypeError (arrow function is callable but IsConstructor is false)
 
-### 1.2 Constructor without `[[TypedArrayName]]`
+### 1.2 Constructor not in Table 70
 
-- [ ] [1.2.1] `%TypedArray%.concat.call(Array, [])` → TypeError (Array is a constructor but has no `[[TypedArrayName]]`)
+- [ ] [1.2.1] `%TypedArray%.concat.call(Array, [])` → TypeError (Array is a constructor but does not appear in Table 70)
 - [ ] [1.2.2] `%TypedArray%.concat.call(Object, [])` → TypeError
-- [ ] [1.2.3] `%TypedArray%.concat.call(function(){}, [])` → TypeError (custom constructor, no `[[TypedArrayName]]`)
+- [ ] [1.2.3] `%TypedArray%.concat.call(function(){}, [])` → TypeError (custom constructor, not in Table 70)
 
 ### 1.3 Valid TypedArray constructors
 
@@ -46,6 +50,7 @@ For each TypedArray constructor (`Int8Array`, `Uint8Array`, `Uint8ClampedArray`,
 - [ ] [2.1.3] `Uint8Array.concat(42)` → TypeError
 - [ ] [2.1.4] `Uint8Array.concat({})` → TypeError (plain object, no `Symbol.iterator`)
 - [ ] [2.1.5] `Uint8Array.concat('hello')` → TypeError (string is iterable but items should be TypedArrays; the string chars will fail `ValidateTypedArray`)
+- [ ] [2.1.6] `Uint8Array.concat({ [Symbol.iterator]: null })` → TypeError (`GetMethod` returns *undefined* when property is *null*)
 
 ### 2.2 Items iterable throws during iteration
 
@@ -272,6 +277,7 @@ For each BigInt type (`BigInt64Array`, `BigUint64Array`):
 - [ ] [8.1.2] `ArrayBuffer.concat(null)` → TypeError
 - [ ] [8.1.3] `ArrayBuffer.concat(42)` → TypeError
 - [ ] [8.1.4] `ArrayBuffer.concat({})` → TypeError
+- [ ] [8.1.5] `ArrayBuffer.concat({ [Symbol.iterator]: null })` → TypeError (`GetMethod` returns *undefined* when property is *null*)
 
 ### 8.2 Items iterable throws during iteration
 
@@ -361,7 +367,7 @@ For each BigInt type (`BigInt64Array`, `BigUint64Array`):
 - [ ] [9.2.1] `ArrayBuffer.concat([], 42)` → TypeError from `GetOptionsObject`
 - [ ] [9.2.2] `ArrayBuffer.concat([], 'string')` → TypeError
 - [ ] [9.2.3] `ArrayBuffer.concat([], true)` → TypeError
-- [ ] [9.2.4] `ArrayBuffer.concat([], null)` → works (null is treated as no options by `GetOptionsObject` — actually this may vary; verify behavior)
+- [ ] [9.2.4] `ArrayBuffer.concat([], null)` → TypeError (*null* is not *undefined* and not an Object)
 
 ### 9.3 Length option validation
 
@@ -679,50 +685,41 @@ Covered in §10. Included here as a cross-reference.
   try { %TypedArray%.concat.call(42, items); } catch(e) {}
   iteratorCalled // → false
   ```
-- [ ] [16.1.2] Items iteration occurs before length validation:
+- [ ] [16.1.2] Items iteration (step 6) occurs before length validation (step 8):
   ```js
-  // Invalid length, but items are iterated first
   let iteratorCalled = false;
   const items = { [Symbol.iterator]() { iteratorCalled = true; return [][Symbol.iterator](); } };
   try { Uint8Array.concat(items, NaN); } catch(e) {}
-  iteratorCalled // → true
+  iteratorCalled // → true (items iterated before length is checked)
   ```
 
-  Wait — actually, looking at the spec, items are iterated (step 4) _before_ length is validated (step 6). Let me re-examine...
-
-  Actually no: step 4 iterates items, step 5-7 validates length. So items iteration happens first, then length validation. But the items in the list are _validated_ (step 9) after length validation. So:
-
-- [ ] [16.1.3] Items are collected via iteration before length validation, but individual items are validated (via `ValidateTypedArray`) _after_ length validation:
+- [ ] [16.1.3] Length validation (step 8) occurs before individual item validation (step 10). Items are collected first, then length is checked, then each item is validated:
   ```js
-  // Invalid length AND invalid item — length error wins because length is checked first (step 6)
-  // Wait, step 4 iterates, steps 5-7 validate length, steps 8-11 validate items
-  // So: iterate items first, then validate length, then validate each item
+  // 'bad' fails ValidateIntegralNumber at step 8 before items are validated at step 10
   Uint8Array.concat([42], 'bad') // → TypeError from length validation ('bad' is not a Number)
   ```
 
-- [ ] [16.1.4] Length validation occurs before item type checking:
+- [ ] [16.1.4] Length range check occurs before item type checking:
   ```js
   Uint8Array.concat([new Int16Array([1])], -1) // → RangeError (from length, not TypeError from type mismatch)
   ```
 
 ### 16.2 `ArrayBuffer.concat` evaluation order
 
-- [ ] [16.2.1] Items iteration occurs before options processing:
+- [ ] [16.2.1] Items iteration (steps 1���3) occurs before options processing (step 4+):
   ```js
-  // Items are iterated at step 1, options are read starting at step 2
   let iteratorCalled = false;
   const items = { [Symbol.iterator]() { iteratorCalled = true; return [][Symbol.iterator](); } };
-  try { ArrayBuffer.concat(items, 42); } catch(e) {} // options error
-  iteratorCalled // → true
+  try { ArrayBuffer.concat(items, 42); } catch(e) {} // options type check error at step 4
+  iteratorCalled // → true (items iterated at step 3, before options checked at step 4)
   ```
-- [ ] [16.2.2] Options processing (length, resizable, immutable) occurs before item validation:
+- [ ] [16.2.2] Options processing (steps 4–10) occurs before item validation (step 11, `GetConcatenationSources`):
   ```js
-  // Invalid options AND invalid items — options error wins
   const detached = new ArrayBuffer(4);
   detached.transfer();
-  ArrayBuffer.concat([detached], { length: 'bad' }) // → TypeError from length validation
+  ArrayBuffer.concat([detached], { length: 'bad' }) // → TypeError from length validation (step 8)
   ```
-- [ ] [16.2.3] `resizable`/`immutable` mutual exclusion check occurs before item validation:
+- [ ] [16.2.3] `resizable`/`immutable` mutual exclusion check (step 10) occurs before item validation (step 11):
   ```js
   const detached = new ArrayBuffer(4);
   detached.transfer();
@@ -731,18 +728,18 @@ Covered in §10. Included here as a cross-reference.
 
 ### 16.3 `SharedArrayBuffer.concat` evaluation order
 
-- [ ] [16.3.1] Items iteration occurs before options processing:
+- [ ] [16.3.1] Items iteration (steps 1–3) occurs before options processing (step 4+):
   ```js
   let iteratorCalled = false;
   const items = { [Symbol.iterator]() { iteratorCalled = true; return [][Symbol.iterator](); } };
-  try { SharedArrayBuffer.concat(items, 42); } catch(e) {} // options error
-  iteratorCalled // → true
+  try { SharedArrayBuffer.concat(items, 42); } catch(e) {} // options type check error at step 4
+  iteratorCalled // → true (items iterated at step 3, before options checked at step 4)
   ```
-- [ ] [16.3.2] Options processing (length, growable) occurs before item validation:
+- [ ] [16.3.2] Options processing (steps 4–9) occurs before item validation (step 10, `GetConcatenationSources`):
   ```js
   const detached = new ArrayBuffer(4);
   detached.transfer();
-  SharedArrayBuffer.concat([detached], { length: 'bad' }) // → TypeError from length validation
+  SharedArrayBuffer.concat([detached], { length: 'bad' }) // → TypeError from length validation (step 7)
   ```
 
 ### 16.4 Items iterator with side effects
@@ -1474,13 +1471,12 @@ The spec algorithms read internal slots (`[[ArrayLength]]`, `[[ByteLength]]`, `[
 
 ### 25.6 Subclass shenanigans
 
-- [ ] [25.6.1] Calling `concat` on a subclass constructor:
+- [ ] [25.6.1] Calling `concat` on a subclass constructor → TypeError (subclass does not appear in Table 70):
   ```js
   class MyUint8 extends Uint8Array {}
-  // MyUint8 has [[TypedArrayName]] === "Uint8Array" (inherited)
-  // But MyUint8 is a valid constructor with the slot
-  // Behavior depends on whether subclass constructors carry [[TypedArrayName]]
-  // This is worth testing to understand the actual behavior
+  MyUint8.concat([new Uint8Array([1, 2])]) // → TypeError
+  // MyUint8 is a constructor but step 2 checks if `this` appears in the
+  // Constructor column of Table 70. Only intrinsic constructors are listed.
   ```
 - [ ] [25.6.2] Item is a subclass instance:
   ```js
@@ -2010,7 +2006,7 @@ Note: Depends on the [Immutable ArrayBuffer proposal](https://github.com/tc39/pr
 
 ### 30.1 `ArrayBuffer.concat` options access order
 
-The spec reads options properties in order: `length` (step 3), `resizable` (step 6), `immutable` (step 7). Observable via getters.
+The spec reads options properties in order: `length` (step 5a), `resizable` (step 5b), `immutable` (step 5c). Observable via getters.
 
 - [ ] [30.1.1] Options property access order is `length`, then `resizable`, then `immutable`:
   ```js
@@ -2048,7 +2044,7 @@ The spec reads options properties in order: `length` (step 3), `resizable` (step
 
 ### 30.2 `SharedArrayBuffer.concat` options access order
 
-The spec reads options properties in order: `length` (step 3), `growable` (step 6). Observable via getters.
+The spec reads options properties in order: `length` (step 5a), `growable` (step 5b). Observable via getters.
 
 - [ ] [30.2.1] Options property access order is `length`, then `growable`:
   ```js
@@ -2109,6 +2105,7 @@ The spec reads options properties in order: `length` (step 3), `growable` (step 
 - [ ] [32.1.2] `SharedArrayBuffer.concat(null)` → TypeError
 - [ ] [32.1.3] `SharedArrayBuffer.concat(42)` → TypeError
 - [ ] [32.1.4] `SharedArrayBuffer.concat({})` → TypeError
+- [ ] [32.1.5] `SharedArrayBuffer.concat({ [Symbol.iterator]: null })` → TypeError (`GetMethod` returns *undefined* when property is *null*)
 
 ### 32.2 Items iterable throws during iteration
 
@@ -2161,6 +2158,7 @@ The spec reads options properties in order: `length` (step 3), `growable` (step 
 - [ ] [33.2.1] `SharedArrayBuffer.concat([], 42)` → TypeError from `GetOptionsObject`
 - [ ] [33.2.2] `SharedArrayBuffer.concat([], 'string')` → TypeError
 - [ ] [33.2.3] `SharedArrayBuffer.concat([], true)` → TypeError
+- [ ] [33.2.4] `SharedArrayBuffer.concat([], null)` → TypeError (*null* is not *undefined* and not an Object)
 
 ### 33.3 Length option validation
 
