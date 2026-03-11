@@ -6,9 +6,9 @@ This proposal is currently [stage 1](https://github.com/tc39/proposals/blob/mast
 
 ## Problem
 
-ECMAScript should provide native methods for concatenating TypedArrays and ArrayBuffers that enable implementations to optimize through strategies that can avoid the current requirement of eagerly allocating and copying data into new buffers.
+Concatenating TypedArrays and ArrayBuffers is a common operation that currently requires verbose manual buffer allocation and data copying; native concat methods within the language would simplify this frequent pattern.
 
-It is common for applications on the web (both browser and server side) to need to concatenate two or more TypedArray or ArrayBuffer instances as part of a data pipeline. Unfortunately, the mechanisms available for concatenation are difficult to optimize for performance. All require additional allocations and copying at inopportune times in the application.
+It is common for applications on the web (both browser and server side) to need to concatenate two or more TypedArray or ArrayBuffer instances as part of a data pipeline. Unfortunately, the mechanisms available for concatenation are verbose. All require incremental allocations and copying.
 
 A common example is a `WritableStream` instance that collects writes up to a defined threshold before passing those on in a single coalesced chunk. Server-side applications have typically relied on Node.js' `Buffer.concat` API, while browser applications have relied on either browser-compatible polyfills of `Buffer` or `TypedArray.prototype.set`.
 
@@ -38,7 +38,7 @@ function concat(buffers, size) {
 }
 ```
 
-While these approaches work, they end up being difficult to optimize because they require potentially expensive allocations and data copying at inopportune times while processing the information. The `TypedArray.prototype.set` method does provide an approach for concatenation that is workable, but the way the algorithm is defined, there is no allowance given for implementation-defined optimization.
+While these approaches work, they require a fair amount of verbose boilerplate.
 
 ## Proposal
 
