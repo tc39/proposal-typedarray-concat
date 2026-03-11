@@ -8,7 +8,7 @@ This proposal is currently [stage 1](https://github.com/tc39/proposals/blob/mast
 
 Concatenating TypedArrays and ArrayBuffers is a common operation that currently requires verbose manual buffer allocation and data copying; native concat methods within the language would simplify this frequent pattern.
 
-It is common for applications on the web (both browser and server side) to need to concatenate two or more TypedArray or ArrayBuffer instances as part of a data pipeline. Unfortunately, the mechanisms available for concatenation are verbose. All require incremental allocations and copying.
+It is common for applications on the web (both browser and server side) to need to concatenate two or more TypedArray or ArrayBuffer instances as part of a data pipeline. Unfortunately, the mechanisms available for concatenation are verbose.
 
 A common example is a `WritableStream` instance that collects writes up to a defined threshold before passing those on in a single coalesced chunk. Server-side applications have typically relied on Node.js' `Buffer.concat` API, while browser applications have relied on either browser-compatible polyfills of `Buffer` or `TypedArray.prototype.set`.
 
