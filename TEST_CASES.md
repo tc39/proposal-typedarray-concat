@@ -706,12 +706,37 @@ Covered in §10. Included here as a cross-reference.
 
 ### 16.2 `ArrayBuffer.concat` evaluation order
 
-- [ ] [16.2.1] Items iteration (steps 1���3) occurs before options processing (step 4+):
+- [ ] [16.2.1] Options processing (steps 1–7) occurs before items iteration (step 8, `GetConcatenationSources`):
   ```js
   let iteratorCalled = false;
   const items = { [Symbol.iterator]() { iteratorCalled = true; return [][Symbol.iterator](); } };
-  try { ArrayBuffer.concat(items, 42); } catch(e) {} // options type check error at step 4
-  iteratorCalled // → true (items iterated at step 3, before options checked at step 4)
+  try { ArrayBuffer.concat(items, 42); } catch(e) {} // options type check error at step 1
+  iteratorCalled // → false (options checked at step 1, before items iterated at step 8)
+  ```
+- [ ] [16.2.2] Options property access occurs before items iteration:
+  ```js
+  let iteratorCalled = false;
+  let optionsAccessed = false;
+  const items = { [Symbol.iterator]() { iteratorCalled = true; return [][Symbol.iterator](); } };
+  const options = { get length() { optionsAccessed = true; return 0; } };
+  ArrayBuffer.concat(items, options);
+  optionsAccessed // → true
+  iteratorCalled // → true
+  // optionsAccessed becomes true before iteratorCalled
+  ```
+- [ ] [16.2.3] `resizable`/`immutable` mutual exclusion check (step 7) occurs before item iteration/validation (step 8):
+  ```js
+  let iteratorCalled = false;
+  const items = { [Symbol.iterator]() { iteratorCalled = true; return [][Symbol.iterator](); } };
+  try { ArrayBuffer.concat(items, { resizable: true, immutable: true }); } catch(e) {} // → TypeError (mutual exclusion)
+  iteratorCalled // → false (mutual exclusion checked before iteration)
+  ```
+- [ ] [16.2.4] Length validation occurs before items iteration:
+  ```js
+  let iteratorCalled = false;
+  const items = { [Symbol.iterator]() { iteratorCalled = true; return [][Symbol.iterator](); } };
+  try { ArrayBuffer.concat(items, { length: 'bad' }); } catch(e) {} // → TypeError from length validation
+  iteratorCalled // → false (length validated before iteration)
   ```
 - [ ] [16.2.2] Options processing (steps 4–10) occurs before item validation (step 11, `GetConcatenationSources`):
   ```js
@@ -728,25 +753,62 @@ Covered in §10. Included here as a cross-reference.
 
 ### 16.3 `SharedArrayBuffer.concat` evaluation order
 
-- [ ] [16.3.1] Items iteration (steps 1–3) occurs before options processing (step 4+):
+- [ ] [16.3.1] Options processing (steps 1–6) occurs before items iteration (step 7, `GetConcatenationSources`):
   ```js
   let iteratorCalled = false;
   const items = { [Symbol.iterator]() { iteratorCalled = true; return [][Symbol.iterator](); } };
-  try { SharedArrayBuffer.concat(items, 42); } catch(e) {} // options type check error at step 4
-  iteratorCalled // → true (items iterated at step 3, before options checked at step 4)
+  try { SharedArrayBuffer.concat(items, 42); } catch(e) {} // options type check error at step 1
+  iteratorCalled // → false (options checked at step 1, before items iterated at step 7)
   ```
-- [ ] [16.3.2] Options processing (steps 4–9) occurs before item validation (step 10, `GetConcatenationSources`):
+- [ ] [16.3.2] Options property access occurs before items iteration:
   ```js
-  const detached = new ArrayBuffer(4);
-  detached.transfer();
-  SharedArrayBuffer.concat([detached], { length: 'bad' }) // → TypeError from length validation (step 7)
+  let iteratorCalled = false;
+  let optionsAccessed = false;
+  const items = { [Symbol.iterator]() { iteratorCalled = true; return [][Symbol.iterator](); } };
+  const options = { get length() { optionsAccessed = true; return 0; } };
+  SharedArrayBuffer.concat(items, options);
+  optionsAccessed // → true
+  iteratorCalled // → true
+  // optionsAccessed becomes true before iteratorCalled
+  ```
+- [ ] [16.3.3] Length validation occurs before items iteration:
+  ```js
+  let iteratorCalled = false;
+  const items = { [Symbol.iterator]() { iteratorCalled = true; return [][Symbol.iterator](); } };
+  try { SharedArrayBuffer.concat(items, { length: 'bad' }); } catch(e) {} // → TypeError from length validation
+  iteratorCalled // → false (length validated before iteration)
   ```
 
 ### 16.4 Items iterator with side effects
 
-- [ ] [16.4.1] `%TypedArray%.concat`: Custom iterable that tracks iteration count → all items collected before any validation
-- [ ] [16.4.2] `ArrayBuffer.concat`: Custom iterable that tracks iteration count → all items collected before any validation
-- [ ] [16.4.3] `SharedArrayBuffer.concat`: Custom iterable that tracks iteration count → all items collected before any validation
+- [ ] [16.4.1] `%TypedArray%.concat`: Custom iterable that tracks iteration count → all items collected before any item validation
+- [ ] [16.4.2] `ArrayBuffer.concat`: Custom iterable that tracks iteration count → all items collected before any item validation; options processed before iteration
+- [ ] [16.4.3] `SharedArrayBuffer.concat`: Custom iterable that tracks iteration count → all items collected before any item validation; options processed before iteration
+
+### 16.5 No user code after GetConcatenationSources
+
+- [ ] [16.5.1] `ArrayBuffer.concat`: After items are iterated and validated in GetConcatenationSources, no user code can run:
+  ```js
+  // Options getter cannot affect items after they are collected
+  let phase = 'start';
+  const ab = new ArrayBuffer(4);
+  const items = {
+    [Symbol.iterator]() {
+      phase = 'iterating';
+      return [ab][Symbol.iterator]();
+    }
+  };
+  const options = {
+    get length() {
+      phase = 'options';
+      return undefined;
+    }
+  };
+  ArrayBuffer.concat(items, options);
+  // phase transitions: 'start' → 'options' → 'iterating'
+  // (options accessed first, then iteration happens)
+  ```
+- [ ] [16.5.2] `SharedArrayBuffer.concat`: Same guarantee as ArrayBuffer.concat
 
 ---
 
