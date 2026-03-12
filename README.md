@@ -44,39 +44,39 @@ While these approaches work, they require a fair amount of verbose boilerplate.
 
 This proposal provides three complementary static methods for concatenation:
 
-1. **`%TypedArray%.concat(items [, length])`** — element-oriented concatenation of same-type TypedArrays
-2. **`ArrayBuffer.concat(items [, options])`** — byte-oriented concatenation returning an ArrayBuffer
-3. **`SharedArrayBuffer.concat(items [, options])`** — byte-oriented concatenation returning a SharedArrayBuffer
+1. **`%TypedArray%.fromList(items [, length])`** — element-oriented concatenation of same-type TypedArrays
+2. **`ArrayBuffer.fromList(items [, options])`** — byte-oriented concatenation returning an ArrayBuffer
+3. **`SharedArrayBuffer.fromList(items [, options])`** — byte-oriented concatenation returning a SharedArrayBuffer
 
 All three methods afford implementations the ability to determine the most optimal approach, and optimal timing, for performing the allocations and copies, but no specific optimization is required.
 
-`%TypedArray%.concat` accepts only TypedArrays of the same type as the constructor (e.g., all `Uint8Array` for `Uint8Array.concat`), though those TypedArrays may be backed by either an ArrayBuffer or a SharedArrayBuffer. `ArrayBuffer.concat` and `SharedArrayBuffer.concat` accept any mix of ArrayBuffer, SharedArrayBuffer, TypedArray, and DataView inputs — the return type is determined by which method is called, not by the input types.
+`%TypedArray%.fromList` accepts only TypedArrays of the same type as the constructor (e.g., all `Uint8Array` for `Uint8Array.fromList`), though those TypedArrays may be backed by either an ArrayBuffer or a SharedArrayBuffer. `ArrayBuffer.fromList` and `SharedArrayBuffer.fromList` accept any mix of ArrayBuffer, SharedArrayBuffer, TypedArray, and DataView inputs — the return type is determined by which method is called, not by the input types.
 
-### `%TypedArray%.concat(items [, length])`
+### `%TypedArray%.fromList(items [, length])`
 
-Concatenates multiple TypedArrays of the same type into a new TypedArray.
+Creates a new TypedArray by concatenating the elements of multiple TypedArrays of the same type.
 
 ```js
 const enc = new TextEncoder();
 const u8_1 = enc.encode('Hello ');
 const u8_2 = enc.encode('World!');
-const u8_3 = Uint8Array.concat([u8_1, u8_2]);
+const u8_3 = Uint8Array.fromList([u8_1, u8_2]);
 // u8_3 contains: Uint8Array [72, 101, 108, 108, 111, 32, 87, 111, 114, 108, 100, 33]
 ```
 
 - `items` — an iterable of TypedArray instances, all of the same type as the constructor.
 - `length` (optional) — a non-negative integer specifying the element length of the result. If less than the total, the result is truncated. If greater, the result is zero-filled. Defaults to the sum of all input lengths.
 
-All items must be TypedArrays of the same type as the constructor (e.g., all `Uint8Array` for `Uint8Array.concat`). A `TypeError` is thrown if any item is a different type. Items may be backed by either an ArrayBuffer or a SharedArrayBuffer.
+All items must be TypedArrays of the same type as the constructor (e.g., all `Uint8Array` for `Uint8Array.fromList`). A `TypeError` is thrown if any item is a different type. Items may be backed by either an ArrayBuffer or a SharedArrayBuffer.
 
 A `TypeError` is thrown if any item is a detached TypedArray. A `RangeError` is thrown if the total element count exceeds 2<sup>53</sup> - 1.
 
 ```js
 // Truncate to 5 elements
-const truncated = Uint8Array.concat([u8_1, u8_2], 5);
+const truncated = Uint8Array.fromList([u8_1, u8_2], 5);
 
 // Zero-fill to 20 elements
-const padded = Uint8Array.concat([u8_1, u8_2], 20);
+const padded = Uint8Array.fromList([u8_1, u8_2], 20);
 
 // WritableStream coalescing example
 let buffers = [];
@@ -86,7 +86,7 @@ new WritableStream({
     buffers.push(chunk);
     size += chunk.length;
     if (size >= 4096) {
-      flushBuffer(Uint8Array.concat(buffers, size));
+      flushBuffer(Uint8Array.fromList(buffers, size));
       buffers = [];
       size = 0;
     }
@@ -94,57 +94,57 @@ new WritableStream({
 });
 ```
 
-The `concat` method is available on all TypedArray constructors:
+The `fromList` method is available on all TypedArray constructors:
 
 ```js
 // Integer types
-Int8Array.concat([new Int8Array([-1, 127]), new Int8Array([0, -128])]);
+Int8Array.fromList([new Int8Array([-1, 127]), new Int8Array([0, -128])]);
 // → Int8Array [-1, 127, 0, -128]
 
-Uint8Array.concat([new Uint8Array([0, 255]), new Uint8Array([128])]);
+Uint8Array.fromList([new Uint8Array([0, 255]), new Uint8Array([128])]);
 // → Uint8Array [0, 255, 128]
 
-Uint8ClampedArray.concat([new Uint8ClampedArray([0, 255]), new Uint8ClampedArray([128])]);
+Uint8ClampedArray.fromList([new Uint8ClampedArray([0, 255]), new Uint8ClampedArray([128])]);
 // → Uint8ClampedArray [0, 255, 128]
 
-Int16Array.concat([new Int16Array([-1, 32767]), new Int16Array([0])]);
+Int16Array.fromList([new Int16Array([-1, 32767]), new Int16Array([0])]);
 // → Int16Array [-1, 32767, 0]
 
-Uint16Array.concat([new Uint16Array([0, 65535]), new Uint16Array([256])]);
+Uint16Array.fromList([new Uint16Array([0, 65535]), new Uint16Array([256])]);
 // → Uint16Array [0, 65535, 256]
 
-Int32Array.concat([new Int32Array([-1, 2147483647]), new Int32Array([0])]);
+Int32Array.fromList([new Int32Array([-1, 2147483647]), new Int32Array([0])]);
 // → Int32Array [-1, 2147483647, 0]
 
-Uint32Array.concat([new Uint32Array([0, 4294967295]), new Uint32Array([256])]);
+Uint32Array.fromList([new Uint32Array([0, 4294967295]), new Uint32Array([256])]);
 // → Uint32Array [0, 4294967295, 256]
 
 // BigInt types
-BigInt64Array.concat([new BigInt64Array([0n, -1n]), new BigInt64Array([9007199254740991n])]);
+BigInt64Array.fromList([new BigInt64Array([0n, -1n]), new BigInt64Array([9007199254740991n])]);
 // → BigInt64Array [0n, -1n, 9007199254740991n]
 
-BigUint64Array.concat([new BigUint64Array([0n, 1n]), new BigUint64Array([18446744073709551615n])]);
+BigUint64Array.fromList([new BigUint64Array([0n, 1n]), new BigUint64Array([18446744073709551615n])]);
 // → BigUint64Array [0n, 1n, 18446744073709551615n]
 
 // Floating-point types
-Float16Array.concat([new Float16Array([1.5, -0]), new Float16Array([Infinity, NaN])]);
+Float16Array.fromList([new Float16Array([1.5, -0]), new Float16Array([Infinity, NaN])]);
 // → Float16Array [1.5, -0, Infinity, NaN]
 
-Float32Array.concat([new Float32Array([1.5, -0]), new Float32Array([Infinity, NaN])]);
+Float32Array.fromList([new Float32Array([1.5, -0]), new Float32Array([Infinity, NaN])]);
 // → Float32Array [1.5, -0, Infinity, NaN]
 
-Float64Array.concat([new Float64Array([1.5, -0]), new Float64Array([Infinity, NaN])]);
+Float64Array.fromList([new Float64Array([1.5, -0]), new Float64Array([Infinity, NaN])]);
 // → Float64Array [1.5, -0, Infinity, NaN]
 ```
 
-### `ArrayBuffer.concat(items [, options])`
+### `ArrayBuffer.fromList(items [, options])`
 
-Concatenates the byte contents of multiple ArrayBuffers, SharedArrayBuffers, TypedArrays, or DataViews into a new ArrayBuffer.
+Creates a new ArrayBuffer by concatenating the byte contents of multiple ArrayBuffers, SharedArrayBuffers, TypedArrays, or DataViews.
 
 ```js
 const ab1 = new ArrayBuffer(4);
 const ab2 = new ArrayBuffer(4);
-const ab3 = ArrayBuffer.concat([ab1, ab2]);
+const ab3 = ArrayBuffer.fromList([ab1, ab2]);
 // ab3.byteLength === 8
 ```
 
@@ -163,34 +163,34 @@ A `TypeError` is thrown for detached buffers or out-of-bounds DataViews. A `Rang
 const ab = new ArrayBuffer(4);
 const u8 = new Uint8Array([1, 2, 3, 4]);
 const dv = new DataView(new ArrayBuffer(2));
-const result = ArrayBuffer.concat([ab, u8, dv]);
+const result = ArrayBuffer.fromList([ab, u8, dv]);
 // result.byteLength === 10
 
 // Truncate to 6 bytes
-const truncated = ArrayBuffer.concat([ab, u8, dv], { length: 6 });
+const truncated = ArrayBuffer.fromList([ab, u8, dv], { length: 6 });
 
 // Zero-fill to 16 bytes
-const padded = ArrayBuffer.concat([ab, u8], { length: 16 });
+const padded = ArrayBuffer.fromList([ab, u8], { length: 16 });
 
 // Create a resizable result with room to grow
-const resizable = ArrayBuffer.concat([ab, u8], { resizable: true, length: 32 });
+const resizable = ArrayBuffer.fromList([ab, u8], { resizable: true, length: 32 });
 // resizable.byteLength === 8 (actual data)
 // resizable.maxByteLength === 32 (can grow up to 32)
 
 // Create an immutable result (requires Immutable ArrayBuffer proposal)
-const immutable = ArrayBuffer.concat([ab, u8], { immutable: true });
+const immutable = ArrayBuffer.fromList([ab, u8], { immutable: true });
 // immutable.byteLength === 8
 // immutable.immutable === true
 ```
 
-### `SharedArrayBuffer.concat(items [, options])`
+### `SharedArrayBuffer.fromList(items [, options])`
 
-Concatenates the byte contents of multiple ArrayBuffers, SharedArrayBuffers, TypedArrays, or DataViews into a new SharedArrayBuffer.
+Creates a new SharedArrayBuffer by concatenating the byte contents of multiple ArrayBuffers, SharedArrayBuffers, TypedArrays, or DataViews.
 
 ```js
 const sab1 = new SharedArrayBuffer(4);
 const sab2 = new SharedArrayBuffer(4);
-const sab3 = SharedArrayBuffer.concat([sab1, sab2]);
+const sab3 = SharedArrayBuffer.fromList([sab1, sab2]);
 // sab3.byteLength === 8
 ```
 
@@ -208,11 +208,11 @@ A `TypeError` is thrown for detached buffers or out-of-bounds DataViews. A `Rang
 const sab = new SharedArrayBuffer(4);
 const u8 = new Uint8Array([1, 2, 3, 4]);
 const dv = new DataView(new ArrayBuffer(2));
-const result = SharedArrayBuffer.concat([sab, u8, dv]);
+const result = SharedArrayBuffer.fromList([sab, u8, dv]);
 // result.byteLength === 10
 
 // Create a growable result with room to grow
-const growable = SharedArrayBuffer.concat([sab, u8], { growable: true, length: 32 });
+const growable = SharedArrayBuffer.fromList([sab, u8], { growable: true, length: 32 });
 // growable.byteLength === 8 (actual data)
 // growable.maxByteLength === 32 (can grow up to 32)
 ```
@@ -223,8 +223,8 @@ Per the current definition of `TypedArray.prototype.set` in the language specifi
 
 ### Why three methods?
 
-`%TypedArray%.concat` operates at the TypedArray level — it is element-oriented, requires same-type inputs, and returns a TypedArray. This is the right level of abstraction when working with typed data (e.g., concatenating `Uint8Array` chunks in a stream).
+`%TypedArray%.fromList` operates at the TypedArray level — it is element-oriented, requires same-type inputs, and returns a TypedArray. This is the right level of abstraction when working with typed data (e.g., concatenating `Uint8Array` chunks in a stream).
 
-`ArrayBuffer.concat` and `SharedArrayBuffer.concat` operate at the buffer level — they are byte-oriented, accept heterogeneous inputs (ArrayBuffer/SharedArrayBuffer, TypedArray, DataView), and return the appropriate buffer type. This is the right level of abstraction for controlling buffer properties like resizability/growability and immutability, which are concerns of the buffer, not the TypedArray.
+`ArrayBuffer.fromList` and `SharedArrayBuffer.fromList` operate at the buffer level — they are byte-oriented, accept heterogeneous inputs (ArrayBuffer/SharedArrayBuffer, TypedArray, DataView), and return the appropriate buffer type. This is the right level of abstraction for controlling buffer properties like resizability/growability and immutability, which are concerns of the buffer, not the TypedArray.
 
-`ArrayBuffer.concat` and `SharedArrayBuffer.concat` are separate methods because the return type differs and the available options differ (`immutable` is only available for ArrayBuffer, `growable` is only available for SharedArrayBuffer). This mirrors the existing separation between the `ArrayBuffer` and `SharedArrayBuffer` constructors in the language.
+`ArrayBuffer.fromList` and `SharedArrayBuffer.fromList` are separate methods because the return type differs and the available options differ (`immutable` is only available for ArrayBuffer, `growable` is only available for SharedArrayBuffer). This mirrors the existing separation between the `ArrayBuffer` and `SharedArrayBuffer` constructors in the language.
