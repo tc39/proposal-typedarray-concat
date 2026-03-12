@@ -41,9 +41,9 @@ contributors: James M Snell
     <emu-clause id="sec-properties-of-the-%typedarray%-intrinsic-object">
       <h1>Properties of the %TypedArray% Intrinsic Object</h1>
 
-      <emu-clause id="sec-%typedarray%.concat" type="built-in function">
-        <h1>%TypedArray%.concat ( _items_ [ , _length_ ] )</h1>
-        <p>This method concatenates the elements of multiple TypedArrays of the same type into a new TypedArray. It performs the following steps when called:</p>
+      <emu-clause id="sec-%typedarray%.fromlist" type="built-in function" oldids="sec-%typedarray%.concat">
+        <h1>%TypedArray%.fromList ( _items_ [ , _length_ ] )</h1>
+        <p>This method creates a new TypedArray by concatenating the elements of multiple TypedArrays of the same type. It performs the following steps when called:</p>
         <emu-alg>
           1. Let _constructor_ be the *this* value.
           1. If _constructor_ does not appear in the Constructor column of <emu-xref href="#table-the-typedarray-constructors"></emu-xref>, throw a *TypeError* exception.
@@ -85,7 +85,7 @@ contributors: James M Snell
         </emu-alg>
         <p>The *"length"* property of this method is *1*<sub>𝔽</sub>.</p>
         <emu-note>
-          <p>If _items_ yields no elements, the result is a zero-length TypedArray unless _length_ overrides the total. For example, `Uint8Array.concat([], 10)` produces a 10-element zero-filled Uint8Array.</p>
+          <p>If _items_ yields no elements, the result is a zero-length TypedArray unless _length_ overrides the total. For example, `Uint8Array.fromList([], 10)` produces a 10-element zero-filled Uint8Array.</p>
         </emu-note>
         <emu-note type="editor">
           <p>The algorithm from <emu-xref href="#step-ta-copy-start"></emu-xref> through <emu-xref href="#step-ta-copy-done"></emu-xref> is specified with explicit allocation and byte-copying steps for clarity. Because all items share the same element type and the copy operates on the underlying data blocks, the result of the concatenation is not observable to user code during construction. Implementations may therefore use any technique — such as bulk memory copy, deferred allocation, or platform-specific optimizations — provided the observable result is equivalent.</p>
@@ -171,7 +171,7 @@ contributors: James M Snell
       1. Return ~unused~.
     </emu-alg>
     <emu-note>
-      <p>The callers of this abstract operation (ArrayBuffer.concat and SharedArrayBuffer.concat) process options before calling GetConcatenationSources, ensuring that no user code can execute after GetConcatenationSources returns. The callers then allocate _result_ using the intrinsic %ArrayBuffer% or %SharedArrayBuffer% constructors, whose *"prototype"* properties are non-configurable data properties. Therefore, no source buffer can become detached between validation and the byte copying performed here.</p>
+      <p>The callers of this abstract operation (ArrayBuffer.fromList and SharedArrayBuffer.fromList) process options before calling GetConcatenationSources, ensuring that no user code can execute after GetConcatenationSources returns. The callers then allocate _result_ using the intrinsic %ArrayBuffer% or %SharedArrayBuffer% constructors, whose *"prototype"* properties are non-configurable data properties. Therefore, no source buffer can become detached between validation and the byte copying performed here.</p>
     </emu-note>
     <emu-note type="editor">
       <p>The algorithm from <emu-xref href="#step-copy-start"></emu-xref> through <emu-xref href="#step-copy-done"></emu-xref> is specified with explicit byte-copying steps for clarity. Because the copy operates on the underlying data blocks, the result of the concatenation is not observable to user code during construction. Implementations may therefore use any technique — such as bulk memory copy, deferred allocation, or platform-specific optimizations — provided the observable result is equivalent.</p>
@@ -206,9 +206,9 @@ contributors: James M Snell
   <emu-clause id="sec-properties-of-the-arraybuffer-constructor">
     <h1>Properties of the ArrayBuffer Constructor</h1>
 
-    <emu-clause id="sec-arraybuffer.concat" type="built-in function">
-      <h1>ArrayBuffer.concat ( _items_ [ , _options_ ] )</h1>
-      <p>This method concatenates the byte contents of multiple ArrayBuffers, SharedArrayBuffers, TypedArrays, or DataViews into a new ArrayBuffer. It performs the following steps when called:</p>
+    <emu-clause id="sec-arraybuffer.fromlist" type="built-in function" oldids="sec-arraybuffer.concat">
+      <h1>ArrayBuffer.fromList ( _items_ [ , _options_ ] )</h1>
+      <p>This method creates a new ArrayBuffer by concatenating the byte contents of multiple ArrayBuffers, SharedArrayBuffers, TypedArrays, or DataViews. It performs the following steps when called:</p>
       <emu-alg>
         1. If _options_ is not *undefined* and _options_ is not an Object, throw a *TypeError* exception.
         1. If _options_ is an Object, then
@@ -261,9 +261,9 @@ contributors: James M Snell
   <emu-clause id="sec-properties-of-the-sharedarraybuffer-constructor">
     <h1>Properties of the SharedArrayBuffer Constructor</h1>
 
-    <emu-clause id="sec-sharedarraybuffer.concat" type="built-in function">
-      <h1>SharedArrayBuffer.concat ( _items_ [ , _options_ ] )</h1>
-      <p>This method concatenates the byte contents of multiple ArrayBuffers, SharedArrayBuffers, TypedArrays, or DataViews into a new SharedArrayBuffer. It performs the following steps when called:</p>
+    <emu-clause id="sec-sharedarraybuffer.fromlist" type="built-in function" oldids="sec-sharedarraybuffer.concat">
+      <h1>SharedArrayBuffer.fromList ( _items_ [ , _options_ ] )</h1>
+      <p>This method creates a new SharedArrayBuffer by concatenating the byte contents of multiple ArrayBuffers, SharedArrayBuffers, TypedArrays, or DataViews. It performs the following steps when called:</p>
       <emu-alg>
         1. If _options_ is not *undefined* and _options_ is not an Object, throw a *TypeError* exception.
         1. If _options_ is an Object, then
